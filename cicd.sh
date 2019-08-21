@@ -11,7 +11,7 @@ function start_gogs {
     docker run -d -p 8300:3000 -p 8322:22 -v gogs_data:/data --network=$DOCKER_NETWORK --restart=unless-stopped --name=gogs gogs/gogs
 }
 
-function start_sonar {
+function start_sonarqube {
     docker run -d -p 9000:9000 -v sonarqube_conf:/opt/sonarqube/conf -v sonarqube_data:/opt/sonarqube/data -v sonarqube_logs:/opt/sonarqube/logs -v sonarqube_extentions:/opt/sonarqube/extensions --network=$DOCKER_NETWORK --restart=unless-stopped --name=sonarqube sonarqube
 }
 
@@ -25,7 +25,7 @@ case $1 in
             'all' )
               echo "Starting all services..."
               start_jenkins
-              start_sonar
+              start_sonarqube
               start_nexus3
               start_gogs
             ;;
@@ -33,7 +33,7 @@ case $1 in
               start_jenkins
             ;;
             'sonar' )
-              start_sonar
+              start_sonarqube
             ;;
             'nexus' )
               start_nexus3
@@ -48,7 +48,7 @@ case $1 in
            'all' )
            echo "Stopping all services..."
            docker stop jenkins
-           docker stop sonar
+           docker stop sonarqube
            docker stop nexus3
            docker stop gogs
          ;;
@@ -57,12 +57,31 @@ case $1 in
          ;;
        esac
     ;;
+    'restart' )
+        case $2 in
+            'all' )
+            echo "Re-starting all services..."
+            docker stop jenkins
+            docker stop sonarqube
+            docker stop nexus3
+            docker stop gogs
+            docker start jenkins
+            docker start sonarqube
+            docker start nexus3
+            docker start gogs
+          ;;
+          * )
+           docker stop $2
+           docker start $2
+          ;;
+        esac
+     ;;
     'rm' )
         case $2 in
             'all' )
             echo "Removing all services..."
             docker rm jenkins
-            docker rm sonar
+            docker rm sonarqube
             docker rm nexus3
             docker rm gogs
           ;;
@@ -72,6 +91,6 @@ case $1 in
         esac
      ;;
      * )
-      echo stop,start,rm docker containers
+      echo stop,start,restart,rm docker containers
      ;;
 esac

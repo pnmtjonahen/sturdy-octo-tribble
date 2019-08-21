@@ -1,28 +1,29 @@
 # Continious Integration / Continious Deployment
+## A buildpipeline
 
-![gogs](https://img.shields.io/badge/git-GOGS-blue)
+![gogs](https://img.shields.io/badge/git-Gogs-blue)
 ![jenkins](https://img.shields.io/badge/cicd-Jenkins-blue)
 ![nexus3](https://img.shields.io/badge/repo-Nexus3-blue)
 ![sonarqube](https://img.shields.io/badge/qa-SonarQube-blue)
 
-
-## A buildpipeline
-
-This repository contains scripts to start a local buildpipeline. The following tools are included:
+This repository contains scripts/guide to start a local buildpipeline. The following tools are included:
 - Jenkins
 - SonarQube
 - Nexus3
-- GOGS
+- Gogs
 
 All the different tools run in their own docker container.
 
-The following rules are the decisions I made and are up to the reader to decide whether to follow or not. Reasoning is that I wanted a playground not a production grade pipeline.
+The following decisions I made and are up to the reader to decide whether to follow or not. Reasoning is that I wanted a playground, not a production grade pipeline.
 
 - When possible use docker volumes to store persistent data, no or minimal host mounted volumes are used.
 - When possible use embedded database
 - All applications are connected to the same docker network 'local-cicd-network' this allows the different applications to connect to each other by name.
 
-## GOGS a painless self-hosted Git services
+Note:
+When playing around or initially start the application without -d (detached) mode, it is easier to read what is happening/went wrong. If everything is working fine, stop and start all application with the -d (detached) option.
+
+## Gogs a painless self-hosted Git services
 
 ### Installation
 Dockerhub: https://hub.docker.com/r/gogs/gogs/
@@ -57,12 +58,12 @@ You should now have your own self-hosted Git service.
 ### Mirror GitHub
 Inspired by : https://moox.io/blog/keep-in-sync-git-repos-on-github-gitlab-bitbucket/
 
-Not having my source code only on the self-hosted git service I wanted to have my github repositories synced with my GOGS service.
-To allow easy push and pulls on both repository I added the same public SSH key to both GitHub and GOGS.
+Not having my source code only on the self-hosted git service I wanted to have my github repositories synced with my Gogs service.
+To allow easy push and pulls on both repository I added the same public SSH key to both GitHub and Gogs.
 
-Next step is to mirror a GitHub repository in GOGS. Select create -> New Migration.
+Next step is to mirror a GitHub repository in Gogs. Select create -> New Migration.
 
-GOGS only allows for creating a mirror using HTTP/HTTPS so you need your GitHub username/password for Authorisation. Fill in the:
+Gogs only allows for creating a mirror using HTTP/HTTPS so you need your GitHub username/password for Authorisation. Fill in the:
 - Clone Address
 - Need Authorization
   - Username
@@ -73,7 +74,7 @@ Use the same repository name as the mirrored repository to prevent confusion.
 
 And click on the 'Migrate Repository' button.
 
-You now have a mirror/copy of your GitHub hosted repository on your local GOGS instance.
+You now have a mirror/copy of your GitHub hosted repository on your local Gogs instance.
 
 To allow 'git push' on both repositories we need to set the correct remote url. As we are using a non standard ssh port the url for remote is slightly different then the default.
 
@@ -92,7 +93,7 @@ where:
 
 Inspired by : https://jenkins.io/doc/tutorials/build-a-java-app-with-maven/
 
-Except that we wont use a file based repository but will use a hosted repository (GOGS)
+Except that we wont use a file based repository but will use a hosted repository (Gogs)
 
 ### Installation
 To get jenkins installed follow the guide mentioned above. After installation and your first pipeline stop jenkins and restart with the following docker command:
@@ -110,10 +111,13 @@ docker run \
   jenkinsci/blueocean
 ```
 
-This will run jenkins as a deamon, restart jenkins unless stopped and removes the hostbased volume.
+This will then:
+- run Jenkins in the background
+- restarts Jenkins unless stopped and
+- removes the host based volume.
 
-### Build your GOGS mirrord project.
-First Jenkins need to be able to get the source code using git (Either via GitHub or from GOGS). As we added to both repositories the same ssh public key we can simply add a credential with the private key belonging to the public key.
+### Build your Gogs mirrored project.
+First Jenkins need to be able to get the source code using git (Either via GitHub or from Gogs). As we added to both repositories the same ssh public key we can simply add a credential with the private key belonging to the public key.
 
 Add a Jenkins file to your repository (if not already done) with the correct pipeline definition.
 
@@ -129,8 +133,19 @@ into
 ssh://git@gogs/{user_name}/{repository_name}.git
 ```
 
-As the gogs repository from a jenkins point of view is not on localhost:8322 but on gogs:22 as they are on the same docker network.
+As the Gogs repository from a Jenkins point of view is not on localhost:8322 but on gogs:22 as they are on the same docker network.
 
+### Trigger build on push
+On Jenkins install the 'Gogs Webhook Plugin' https://wiki.jenkins.io/display/JENKINS/Gogs+Webhook+Plugin
+
+Then on Gogs repository configure the webhook (Gogs) on push only. For the payload use:
+```
+http://jenkins:8080/gogs-webhook/?job={job_name}
+```
+
+From a Gogs point of view jenkins is not on localhost:18080 but on the same docker network on host name jenkins with port 8080.
+
+No if you push changed to the gogs repo (or when you use)
 
 ## SonarQube
 
@@ -150,6 +165,25 @@ docker run \
   sonarqube
 ```
 
+### Testing the installation.
+
+From your local cloned repository perform a:
+```bash
+mvn sonar:sonar
+```
+
+This will use the default sonar location.
+
+When adding to your pipeline script remember that sonar is running not on localhost from a jenkins point of view. But on a host called sonarqube. Define your pipeline step as follows:
+
+```
+stage('Sonar') {
+  steps {
+      sh 'mvn sonar:sonar -Dsonar.host.url=http://sonarqube:9000'
+  }
+}
+```
+
 ## Nexus3
 
 ### Installation
@@ -166,3 +200,66 @@ docker run \
   --name nexus3 \
   sonatype/nexus3
 ```
+### Configuration (local)
+
+For local development we need to setup maven to use our local installed nexus as the maven central proxy.
+
+```xml
+<settings>
+  <mirrors>
+    <mirror>
+      <!--This sends everything else to /public -->
+      <id>nexus</id>
+      <mirrorOf>*</mirrorOf>
+      <url>http://localhost:18081/repository/maven-central/</url>
+    </mirror>
+  </mirrors>
+  <profiles>
+    <profile>
+      <id>nexus</id>
+      <!--Enable snapshots for the built in central repo to direct -->
+      <!--all requests to nexus via the mirror -->
+      <repositories>
+        <repository>
+          <id>central</id>
+          <url>http://central</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+      </repositories>
+     <pluginRepositories>
+        <pluginRepository>
+          <id>central</id>
+          <url>http://central</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+  <activeProfiles>
+    <!--make the profile active all the time -->
+    <activeProfile>nexus</activeProfile>
+  </activeProfiles>
+</settings>
+```
+
+### Configuration (Jenkins)
+For Jenkins maven builds to use the Nexus repository 2 separate changes need to be made.
+
+First the maven agent used in the pipeline definition should also connect to the docker network. Change your Jenkins file as follows:
+
+```
+agent {
+    docker {
+        image 'maven:3.6.1-jdk-12'
+        args '-v /root/.m2:/root/.m2 --network=local-cicd-network'
+    }
+}
+```
+
+This allows the maven docker image to reach the nexus host.
+Next step is to actually have maven use the nexus repository. The maven docker is configured to use the local folder '/root/.m2' as its maven folder.
+In that local folder add the same settings file as above.
+
+Note: Need to find a better place for the .m2 folder.

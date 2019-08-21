@@ -26,7 +26,7 @@ When playing around or initially start the application without -d (detached) mod
 ## Gogs a painless self-hosted Git services
 
 ### Installation
-Dockerhub: https://hub.docker.com/r/gogs/gogs/
+Dockerhub : https://hub.docker.com/r/gogs/gogs/
 
 ```bash
 docker run \
@@ -92,6 +92,7 @@ where:
 ## Jenkins
 
 Inspired by : https://jenkins.io/doc/tutorials/build-a-java-app-with-maven/
+Dockerhub : https://hub.docker.com/r/jenkinsci/blueocean/
 
 Except that we wont use a file based repository but will use a hosted repository (Gogs)
 
@@ -148,7 +149,7 @@ From a Gogs point of view Jenkins is not on localhost:18080 but on the same dock
 If you push changed to the Gogs repo (or when you use)
 
 ## SonarQube
-
+Dockerhub : https://hub.docker.com/_/sonarqube
 ### Installation
 
 ```bash
@@ -185,6 +186,8 @@ stage('Sonar') {
 ```
 
 ## Nexus3
+
+Dockerhub : https://hub.docker.com/r/sonatype/nexus3
 
 ### Installation
 
@@ -260,6 +263,46 @@ agent {
 
 This allows the maven docker image to reach the nexus host.
 Next step is to actually have maven use the nexus repository. The maven docker is configured to use the local folder '/root/.m2' as its maven folder.
-In that local folder add the same settings file as above.
+In that local folder add the following settings.xml file.
+
+```xml
+<settings>
+  <mirrors>
+    <mirror>
+      <!--This sends everything else to /public -->
+      <id>nexus</id>
+      <mirrorOf>*</mirrorOf>
+      <url>http://nexus3:8081/repository/maven-central/</url>
+    </mirror>
+  </mirrors>
+  <profiles>
+    <profile>
+      <id>nexus</id>
+      <!--Enable snapshots for the built in central repo to direct -->
+      <!--all requests to nexus via the mirror -->
+      <repositories>
+        <repository>
+          <id>central</id>
+          <url>http://central</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+      </repositories>
+     <pluginRepositories>
+        <pluginRepository>
+          <id>central</id>
+          <url>http://central</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+  <activeProfiles>
+    <!--make the profile active all the time -->
+    <activeProfile>nexus</activeProfile>
+  </activeProfiles>
+</settings>
+```
 
 Note: Need to find a better place for the .m2 folder.

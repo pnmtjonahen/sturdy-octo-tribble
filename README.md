@@ -143,9 +143,9 @@ Then on Gogs repository configure the webhook (Gogs) on push only. For the paylo
 http://jenkins:8080/gogs-webhook/?job={job_name}
 ```
 
-From a Gogs point of view jenkins is not on localhost:18080 but on the same docker network on host name jenkins with port 8080.
+From a Gogs point of view Jenkins is not on localhost:18080 but on the same docker network on host name jenkins with port 8080.
 
-No if you push changed to the gogs repo (or when you use)
+If you push changed to the Gogs repo (or when you use)
 
 ## SonarQube
 

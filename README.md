@@ -157,7 +157,7 @@ docker run \
   -p 9000:9000 \
   -v sonarqube_conf:/opt/sonarqube/conf \
   -v sonarqube_data:/opt/sonarqube/data \
-  -v /home/ordina/docker/sonarqube/logs:/opt/sonarqube/logs \
+  -v sonarqube_logs:/opt/sonarqube/logs \
   -v sonarqube_extentions:/opt/sonarqube/extensions \
   --network=local-cicd-network \
   --restart=unless-stopped \
